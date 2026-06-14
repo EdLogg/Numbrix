@@ -7,9 +7,9 @@
 
 HBITMAP		hBoard = NULL;
 HBITMAP		hBoardOn = NULL;
-HFONT		hGameFont0 = NULL;
-HFONT		hGameFont1 = NULL;
-HFONT		hGameFont2 = NULL;
+HFONT		hGameFont0 = NULL;						// title bold font
+HFONT		hGameFont1 = NULL;						// large font	
+HFONT		hGameFont2 = NULL;						// small font
 
 
 // Global Variables:
@@ -135,6 +135,8 @@ bool ManualSetValue(bool clear)
 	{
 		if (state == STATE_SOLVE)
 		{
+			if (old != 0)
+				s.pos[old].x = s.pos[old].y = -1;		// remove old value from our list
 			s.pos[val].x = s.cursorX;
 			s.pos[val].y = s.cursorY;
 			s.nodes++;
@@ -178,6 +180,7 @@ void	ChangeCursor(HWND hWnd, int x, int y)
 			HMENU hMenu = GetMenu(hWnd);
 			EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 			EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+			EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 			EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 			EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 			state = STATE_DONE;
@@ -217,6 +220,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	HDC hdc;
 	HFONT hFont;
 	LOGFONT logfont;
+	int save;
 
 	HMENU hMenu = GetMenu(hWnd);
 	switch (message)
@@ -243,6 +247,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		state = STATE_INVALID;
 		EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 		EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+		EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 		EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 		EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 		goto START;
@@ -267,6 +272,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 					state = STATE_DONE;
@@ -290,6 +296,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 					state = STATE_DONE;
@@ -313,6 +320,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 					state = STATE_DONE;
@@ -336,6 +344,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 					state = STATE_DONE;
@@ -354,9 +363,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 			}
 			else if (state == STATE_SOLVE
-			&&  s.cursorX >= 0)
+			&&  s.cursorX >= 0
+			&&  s.cursorY >= 0
+			&&  s.given[s.cursorY][s.cursorX] == false)			// do not modify given numbers
 			{
-				int old = OriginalValue(s.cursorX, s.cursorY);		// original value if any
+				int old = OriginalValue(s.cursorX, s.cursorY);	// original value if any
 				if (old != 0)
 					s.pos[old].x = s.pos[old].y = -1;
 				s.puzzle[s.cursorY][s.cursorX].val = 0;
@@ -376,10 +387,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if (state == STATE_ENTER)
 			{
 				s.puzzle[s.cursorY][s.cursorX].val = 10 * s.puzzle[s.cursorY][s.cursorX].val + (int)wParam - '0';
+				if (s.puzzle[s.cursorY][s.cursorX].val > s.puzzleMax)
+					s.puzzle[s.cursorY][s.cursorX].val = 0;
 			}
 			else if (state == STATE_SOLVE
-			&&  s.cursorX >= 0)
+			&&  s.cursorX >= 0
+			&&  s.cursorY >= 0)
 			{
+				if (s.given[s.cursorY][s.cursorX])				// do not modify given numbers
+					break;
 				s.puzzle[s.cursorY][s.cursorX].val = 10 * s.puzzle[s.cursorY][s.cursorX].val + (int)wParam - '0';
 			}
 			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -387,11 +403,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case VK_RETURN:
 			if (state == STATE_ENTER)
 			{
-				if (s.SetPositions() == false)					// set positions
+				int count;
+				if (s.SetPositions(count) == false)				// set positions
 				{
 					s.ClearPositions();							// clear any position entries
 					RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 					MessageBox(hWnd, "Removed duplicate entries!", "Error", MB_OK | MB_ICONEXCLAMATION);
+					break;
+				}
+				if (count < MIN_STARTTING_NUMBERS)
+				{
+					s.ClearPositions();							// clear any position entries
+					char string[64];
+					sprintf(string, "Make sure you enter at least %d numbers!", MIN_STARTTING_NUMBERS);
+					MessageBox(hWnd, string, "Error", MB_OK | MB_ICONEXCLAMATION);
 					break;
 				}
 				if (s.SolvePuzzle(true))
@@ -399,8 +424,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					if (s.solutionCount != 1)
 					{
 						s.ClearPositions();						// clear any position entries
-						char string[40];
-						sprintf(string, "%d solutions found for this puzzle!", s.solutionCount);
+						char string[64];
+						sprintf(string, "%d%s solutions found for this puzzle!", s.solutionCount,
+							(s.solutionCount >= MAX_SOLUTIONS ? " or more" : ""));
 						MessageBox(hWnd, string, "Error", MB_OK | MB_ICONEXCLAMATION);
 						break;
 					}
@@ -412,9 +438,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					break;
 				}
 				state = STATE_SOLVE;
+				s.SaveGiven();									// save given numbers
 				s.cursorX = s.cursorY = -1;
 				s.nodes = 0;
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_ENABLED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_ENABLED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_ENABLED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_ENABLED);
 				RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
@@ -449,6 +477,7 @@ START:		s.puzzleHeight = 9;
 			s.cursorX = s.cursorY = 0;					// start in the upper left corner
 			EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED);
 			EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+			EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 			EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 			EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
@@ -458,6 +487,7 @@ START:		s.puzzleHeight = 9;
 			{
 				EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				state = STATE_INVALID;
@@ -469,12 +499,14 @@ START:		s.puzzleHeight = 9;
 				if (state == STATE_SOLVE)
 				{
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_ENABLED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_ENABLED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_ENABLED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_ENABLED);
 				}
 				else
 				{
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				}
@@ -484,6 +516,13 @@ START:		s.puzzleHeight = 9;
 			}
 			RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
 			break;
+		case IDM_RESTART:
+			if (state == STATE_SOLVE)
+			{
+				s.RestoreGiven();
+				RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+			}
+			break;
 		case IDM_CHECK:
 		case IDM_SOLVE:
 			s.ClearAdded();
@@ -491,20 +530,24 @@ START:		s.puzzleHeight = 9;
 			{
 				EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				state = STATE_DONE;
 				RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
 				break;
 			}
+			save = s.nodes;
 			if (s.SolvePuzzle(wmId == IDM_CHECK))
 			{
 				if (wmId == IDM_CHECK)
 				{
+					s.nodes = save;
 					if (s.solutionCount > 1)
 					{
-						char string[40];
-						sprintf(string, "%d solutions found for this puzzle!", s.solutionCount);
+						char string[64];
+						sprintf(string, "%d%s solutions found for this puzzle!", s.solutionCount,
+							(s.solutionCount >= MAX_SOLUTIONS ? " or more" : ""));
 						MessageBox(hWnd, string, "Error", MB_OK | MB_ICONEXCLAMATION);
 						RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 					}
@@ -512,6 +555,7 @@ START:		s.puzzleHeight = 9;
 				}
 				EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				state = STATE_DONE;
@@ -519,6 +563,8 @@ START:		s.puzzleHeight = 9;
 			}
 			else
 			{
+				if (wmId == IDM_CHECK)
+					s.nodes = save;
 				MessageBox(hWnd, "No solution for this puzzle!", "Error", MB_OK | MB_ICONEXCLAMATION);
 			}
 			break;
@@ -528,6 +574,7 @@ STEP:		s.ClearAdded();
 			{
 				EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				state = STATE_DONE;
@@ -541,6 +588,7 @@ STEP:		s.ClearAdded();
 				{
 					EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+					EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 					EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 					state = STATE_DONE;
@@ -563,6 +611,7 @@ STEP:		s.ClearAdded();
 			{
 				EnableMenuItem(hMenu, IDM_FILE_SAVE, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_SOLVE, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hMenu, IDM_RESTART, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_CHECK, MF_BYCOMMAND | MF_GRAYED);
 				EnableMenuItem(hMenu, IDM_STEP, MF_BYCOMMAND | MF_GRAYED);
 				state = STATE_DONE;
