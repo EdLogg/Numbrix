@@ -33,7 +33,8 @@ void DrawPuzzle(HWND hWnd, HDC hdc)
 	switch (state)
 	{
 	case STATE_ENTER:
-		DrawText(hdc, "Enter puzzle values.  Use the mouse or arrow keys to select entry.\nPress Return to start solving the puzzle.", -1, &TextRect, DT_CENTER | DT_VCENTER);
+		sprintf(string, "Enter puzzle values 1-%d.  Use the mouse or arrow keys to select entry.\nPress Return to start solving the puzzle.", s.puzzleMax);
+		DrawText(hdc, string, -1, &TextRect, DT_CENTER | DT_VCENTER);
 		break;
 	case STATE_SOLVE:
 		DrawText(hdc, "Press Alt+Space to solve the puzzle or press Space to make a single step.\nTo manually solve: select a tile, enter the value, then select elsewhere.", -1, &TextRect, DT_CENTER | DT_VCENTER);
@@ -79,17 +80,30 @@ void DrawPuzzle(HWND hWnd, HDC hdc)
 			if (s.puzzle[y][x].val > 0)
 			{
 				if (state == STATE_ENTER)
+				{
+					SetTextColor(hdc, RGB(0, 0, 0));
 					SelectObject(hdc, hGameFont1);
-				else if (state == STATE_SOLVE)
+				}
+				else if (state == STATE_DONE)
+				{
+					if (s.given[y][x])
+						SetTextColor(hdc, RGB(0, 0, 0));
+					else
+						SetTextColor(hdc, RGB(0, 0, 255));
+					SelectObject(hdc, hGameFont2);
+				}
+				else // if (state == STATE_SOLVE)
 				{
 					if ((y == s.cursorY && x == s.cursorX)
 					|| s.SegmentEnd(s.puzzle[y][x].val))
 						SelectObject(hdc, hGameFont1);
 					else
 						SelectObject(hdc, hGameFont2);
+					if (s.given[y][x])
+						SetTextColor(hdc, RGB(0, 0, 0));
+					else
+						SetTextColor(hdc, RGB(0, 0, 255));
 				}
-				else
-					SelectObject(hdc, hGameFont1);
 				SetMsgTextRect(ValueRect, xx, yy);
 				sprintf(string, "%d", s.puzzle[y][x].val);
 				DrawText(hdc, string, -1, &ValueRect, DT_CENTER | DT_VCENTER);
