@@ -52,6 +52,36 @@ BOOL LoadTextFile(LPCTSTR pszFileName)
 			}
 		}
 	}
+	if (state == STATE_SOLVE)					// load given positions
+	{
+		for (int y = 0; y < s.puzzleHeight; y++)
+		{
+			for (int x = 0; x < s.puzzleWidth; x++)
+			{
+				int g;
+				c = fscanf(file, "%d", &g);
+				if (c != 1)
+				{
+					fclose(file);
+					if (y == 0 && x == 0)		// old file without given
+					{ 
+						for (int y = 0; y < s.puzzleHeight; y++)
+						{
+							for (int x = 0; x < s.puzzleWidth; x++)
+							{
+								s.given[y][x] = false;
+							}
+						}
+						return true;
+					}
+					else
+						return false;
+				}
+				else
+					s.given[y][x] = (g != 0);
+			}
+		}
+	}
 	fclose(file);
 	return true;
 }
@@ -71,6 +101,16 @@ BOOL SaveTextFile(LPCTSTR pszFileName)
 			for (int x = 0; x < s.puzzleWidth; x++)
 			{
 				fprintf(file, "%d\n", s.puzzle[y][x].val);
+			}
+		}
+		if (state == STATE_SOLVE)					// save given positions too
+		{
+			for (int y = 0; y < s.puzzleHeight; y++)
+			{
+				for (int x = 0; x < s.puzzleWidth; x++)
+				{
+					fprintf(file, "%d\n", (s.given[y][x] ? 1 : 0));
+				}
 			}
 		}
 		fclose(file);
