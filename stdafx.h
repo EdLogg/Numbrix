@@ -37,8 +37,11 @@
 
 #define MAX_DXDY			4
 
-#define	MAX_AREAS			32					// max number of areas to count
-#define MAX_SEGMENTENDS		32					// max number in an area
+#define	MAX_AREAS			64					// max number of areas to count
+#define MAX_SEGMENTENDS		64					// max number in an area
+
+#define MIN_STARTTING_NUMBERS 10				// we must enter this many numbers to start
+#define MAX_SOLUTIONS		8					// stop when we run into this many solutions
 
 extern int SortEnds(const void * e1, const void * e2);
 
@@ -86,6 +89,7 @@ public:
 	//	given[][] = true for those numbers that were given
 	Node	puzzle[MAX_HEIGHT][MAX_WIDTH];			// puzzle with -1 not valid, 0 for unknown, else the real value
 	Position pos[MAX_HEIGHT * MAX_WIDTH + 2];		// position of number else x = -1
+	bool	given[MAX_HEIGHT][MAX_WIDTH];			// which numbers were given to allow restart
 	int		puzzleWidth;							// actual width and height of puzzle 
 	int		puzzleHeight;
 	int		puzzleMax;								// number of entries in the puzzle
@@ -99,6 +103,37 @@ public:
 		dx[0] = 0; dx[1] = -1; dx[2] = 1; dx[3] = 0; 
 		dy[0] = -1; dy[1] = 0; dy[2] = 0; dy[3] = 1; 
 		ClearPuzzle();								// be sure to set pos[0] and pos[82]
+	}
+
+	void SaveGiven()
+	{
+		for (int y = 0; y < puzzleHeight; y++)
+		{
+			for (int x = 0; x < puzzleWidth; x++)
+			{
+				given[y][x] = (puzzle[y][x].val != 0 ? true : false);
+			}
+		}
+	}
+
+	void RestoreGiven()
+	{
+		for (int y = 0; y < puzzleHeight; y++)
+		{
+			for (int x = 0; x < puzzleWidth; x++)
+			{
+				if (given[y][x] == false)
+				{
+					int num = puzzle[y][x].val;
+					if (num > 0)					// remove non-given digit
+					{
+						pos[num].x = pos[num].y = -1;
+						puzzle[y][x].val = 0;
+					}
+				}
+			}
+		}
+		nodes = 0;
 	}
 
 	void ClearPuzzle()
@@ -281,9 +316,10 @@ public:
 		puzzleMax = puzzleWidth * puzzleHeight;
 	}
 
-	bool SetPositions()
+	bool SetPositions(int & count)
 	{
 		bool ret = true;
+		count = 0;
 		for (int y = 0; y < puzzleHeight; y++)
 		{
 			for (int x = 0; x < puzzleWidth; x++)
@@ -298,6 +334,7 @@ public:
 					}
 					pos[puzzle[y][x].val].x = x;
 					pos[puzzle[y][x].val].y = y;
+					count++;
 				}
 			}
 		}
@@ -326,13 +363,29 @@ public:
 		return false;
 	}
 
+	bool Adjacent(int val0, int val1)
+	{
+		if (pos[val0].x < 0
+		|| pos[val1].x < 0)
+			return false;
+		int x = pos[val0].x - pos[val1].x;
+		if (x < -1 || x > 1)
+			return false;
+		int y = pos[val0].y - pos[val1].y;
+		if (y < -1 || y > 1)
+			return false;
+		if (x != 0 && y != 0)							// they must be horizontal or vertical
+			return false;
+		return true;
+	}
+
 	bool SegmentEnd(int val)
 	{
 		if (val != 1
-		&& pos[val - 1].x < 0)
+		&& Adjacent(val - 1, val) == false)
 			return true;
 		if (val != puzzleMax
-		&& pos[val + 1].x < 0)
+		&& Adjacent(val, val + 1) == false)
 			return true;
 		return false;
 	}
@@ -403,6 +456,7 @@ public:
 					pos[n - 1].y = y;
 					puzzle[y][x].val = n - 1;
 					puzzle[y][x].added = true;
+					nodes++;
 					return true;
 				}
 			}
@@ -435,6 +489,7 @@ public:
 					pos[n + 1].y = y;
 					puzzle[y][x].val = n + 1;
 					puzzle[y][x].added = true;
+					nodes++;
 					return true;
 				}
 			}
@@ -586,7 +641,7 @@ private:
 	// we stop when we hit 0 with dir=-1 
 	// if countSolutions is true we try to find all solutions
 	// and save any common values
-	// This returns the solution count (0 or 1 if countSolutions is false)
+	// This returns the solutionCount (0 or 1 if countSolutions is false)
 	bool Search(int x, int y, int next, int start, int dir, bool countSolutions)
 	{
 RETRY:	if (next > puzzleMax)
@@ -667,6 +722,8 @@ RETRY:	if (next > puzzleMax)
 				&& countSolutions == false)				// stop at first solution
 					return true;
 				puzzle[b][a].val = 0;
+				if (solutionCount >= MAX_SOLUTIONS)
+					return true;
 			}
 		}
 		return false;
@@ -751,7 +808,7 @@ RETRY:	if (next > puzzleMax)
 		}
 		if (single && countSegmentEnds == 0)				// this is a dead end that will fail
 		{
-			if (pos[1].x >= 0 && pos[81].x >= 0)			// 1 or 81 canot be here
+			if (pos[1].x >= 0 && pos[81].x >= 0)			// 1 or 81 cannot be here
 				return false;
 			// Rule 7 add code to test to see if we can get from 1 or 81 to this location
 		}
@@ -1077,7 +1134,7 @@ RETRY:	if (next > puzzleMax)
 			pos[val].x = choices[n].x;
 			pos[val].y = choices[n].y;
 		}
-		nodes++;
+  		nodes++;
 #ifdef _DEBUG
 		fclose(file);
 #endif

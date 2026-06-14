@@ -19,9 +19,10 @@
 #define IDM_FILE_SAVE			206
 #define IDM_EXIT				209
 
-#define IDM_SOLVE				210
-#define IDM_STEP				211
-#define IDM_CHECK				212
+#define IDM_RESTART				210
+#define IDM_CHECK				211
+#define IDM_SOLVE				212
+#define IDM_STEP				213
 
 #define IDM_FLIP_NUMBERS		220
 
